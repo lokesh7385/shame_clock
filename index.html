@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shame Clock - Face Your Wasted Time</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Anton&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #1a1a1a;
+            --bg-card: #242424;
+            --bg-dark: #0f0f0f;
+            --fg: #e8e8e8;
+            --fg-muted: #9a9a9a;
+            --accent: #d32f2f;
+            --accent-light: #ef5350;
+            --accent-dark: #8b0000;
+            --border: #333333;
+            --gold: #c9a227;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html {
+            font-family: 'Space Mono', monospace;
+            background: var(--bg-dark);
+            color: var(--fg);
+        }
+
+        body {
+            background: var(--bg-dark);
+            position: relative;
+            min-height: 100vh;
+        }
+
+        /* Ambient background */
+        .ambient-bg {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 0;
+            background: 
+                radial-gradient(ellipse 600px 400px at 20% 20%, rgba(139, 0, 0, 0.08) 0%, transparent 70%),
+                radial-gradient(ellipse 500px 300px at 80% 80%, rgba(139, 0, 0, 0.06) 0%, transparent 70%),
+                radial-gradient(ellipse 400px 400px at 50% 50%, rgba(30, 30, 30, 0.5) 0%, transparent 70%);
+        }
+
+        /* Subtle pattern overlay */
+        .pattern-overlay {
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: 1;
+            opacity: 0.02;
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+
+        /* Blood drip */
+        .blood-drip {
+            position: fixed;
+            top: 0;
+            width: 3px;
+            background: linear-gradient(to bottom,
+                var(--accent-dark) 0%,
+                var(--accent) 30%,
+                transparent 100%
+            );
+            border-radius: 0 0 50% 50%;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        @keyframes drip {
+            0% { height: 0; opacity: 0; }
+            10% { opacity: 0.7; }
+            100% { height: 150px; opacity: 0; }
+        }
+
+        .font-display {
+            font-family: 'Anton', sans-serif;
+        }
+
+        /* Glitch effect */
+        @keyframes glitch {
+            0% { transform: translate(0); }
+            20% { transform: translate(-2px, 2px); }
+            40% { transform: translate(-2px, -2px); }
+            60% { transform: translate(2px, 2px); }
+            80% { transform: translate(2px, -2px); }
+            100% { transform: translate(0); }
+        }
+
+        .glitch-container.glitching {
+            animation: glitch 0.3s ease-in-out infinite;
+        }
+
+        /* Shake */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+            20%, 40%, 60%, 80% { transform: translateX(4px); }
+        }
+
+        .shake {
+            animation: shake 0.5s ease-in-out;
+        }
+
+        /* Fade in up */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(15px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in-up {
+            animation: fadeInUp 0.4s ease-out forwards;
+            opacity: 0;
+        }
+
+        /* Screen flash */
+        @keyframes flash {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 0.2; }
+        }
+
+        .screen-flash {
+            position: fixed;
+            inset: 0;
+            background: var(--accent);
+            pointer-events: none;
+            opacity: 0;
+            z-index: 1000;
+        }
+
+        .screen-flash.active {
+            animation: flash 0.2s ease-out;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-dark); }
+        ::-webkit-scrollbar-thumb { background: var(--accent-dark); }
+
+        /* Inputs */
+        input, select {
+            background: var(--bg-dark);
+            border: 2px solid var(--border);
+            color: var(--fg);
+            font-family: 'Space Mono', monospace;
+            transition: all 0.2s ease;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 15px rgba(211, 47, 47, 0.3);
+        }
+
+        input::placeholder { color: #555; }
+
+        /* Button */
+        .btn-primary {
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .btn-primary:hover::before { left: 100%; }
+        .btn-primary:hover { transform: scale(1.02); }
+        .btn-primary:active { transform: scale(0.98); }
+
+        /* Result card */
+        .result-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+        }
+
+        .result-card:hover {
+            border-color: var(--accent-dark);
+            background: #2a2a2a;
+        }
+
+        /* Category header */
+        .category-header {
+            background: linear-gradient(90deg, rgba(139, 0, 0, 0.2) 0%, transparent 100%);
+            border-left: 3px solid var(--accent);
+        }
+
+        /* Stat card */
+        .stat-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+        }
+
+        /* Interesting activity card */
+        .activity-card {
+            background: linear-gradient(135deg, #1f1f1f 0%, #171717 100%);
+            border: 2px solid var(--gold);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .activity-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--gold), var(--accent), var(--gold));
+        }
+
+        /* Pulse */
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.4); }
+            50% { box-shadow: 0 0 0 10px rgba(211, 47, 47, 0); }
+        }
+
+        .pulse-glow { animation: pulseGlow 1.5s ease-in-out infinite; }
+
+        /* Loading spinner */
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--fg-muted);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        /* Reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Background effects -->
+    <div class="ambient-bg"></div>
+    <div class="pattern-overlay"></div>
+    <div id="bloodDrips"></div>
+    
+    <!-- Screen flash -->
+    <div id="screenFlash" class="screen-flash"></div>
+
+    <div class="relative z-10 min-h-screen flex flex-col">
+        <!-- Header -->
+        <header class="border-b border-zinc-800 py-4 px-6">
+            <div class="max-w-6xl mx-auto flex items-center justify-between">
+                <h1 class="font-display text-3xl md:text-4xl tracking-wider text-red-500">SHAME CLOCK</h1>
+                <div class="text-xs text-zinc-500 uppercase tracking-widest hidden sm:block">
+                    Face Your Wasted Potential
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="flex-1 flex items-center justify-center p-4 md:p-6 py-8">
+            <div class="w-full max-w-5xl">
+                
+                <!-- Input Section -->
+                <section id="inputSection" class="space-y-5">
+                    <!-- Title -->
+                    <div class="text-center mb-6">
+                        <h2 class="font-display text-5xl md:text-7xl tracking-wide mb-3 text-zinc-100">HOW LONG?</h2>
+                        <p class="text-zinc-500 text-sm md:text-base max-w-md mx-auto">
+                            Enter your daily screen time. The numbers don't lie.
+                        </p>
+                    </div>
+
+                    <!-- Time Input -->
+                    <div class="bg-zinc-900 border border-zinc-700 p-6 md:p-8">
+                        <label class="block text-xs uppercase tracking-widest text-zinc-500 mb-4">
+                            Daily Screen Time
+                        </label>
+                        <div class="flex gap-4 items-end">
+                            <div class="flex-1">
+                                <input 
+                                    type="number" 
+                                    id="hoursInput" 
+                                    min="0" 
+                                    max="24"
+                                    placeholder="0"
+                                    class="w-full text-4xl md:text-6xl font-display text-center py-4 text-zinc-100"
+                                    aria-label="Hours"
+                                >
+                                <span class="block text-center text-xs text-zinc-600 mt-2 uppercase tracking-wider">Hours</span>
+                            </div>
+                            <span class="font-display text-4xl md:text-6xl text-red-600 mb-6">:</span>
+                            <div class="flex-1">
+                                <input 
+                                    type="number" 
+                                    id="minutesInput" 
+                                    min="0" 
+                                    max="59"
+                                    placeholder="0"
+                                    class="w-full text-4xl md:text-6xl font-display text-center py-4 text-zinc-100"
+                                    aria-label="Minutes"
+                                >
+                                <span class="block text-center text-xs text-zinc-600 mt-2 uppercase tracking-wider">Minutes</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Who Are You -->
+                    <div class="bg-zinc-900 border border-zinc-700 p-6">
+                        <label class="block text-xs uppercase tracking-widest text-zinc-500 mb-4">
+                            Who Are You?
+                        </label>
+                        <select 
+                            id="roleSelect" 
+                            class="w-full py-4 px-4 text-lg uppercase tracking-wider cursor-pointer text-zinc-100"
+                            aria-label="Select role"
+                        >
+                            <option value="">-- SELECT YOUR IDENTITY --</option>
+                            <option value="student">Student</option>
+                            <option value="worker">Office Worker / Developer</option>
+                        </select>
+                    </div>
+
+                    <!-- Student Input -->
+                    <div id="studentInput" class="hidden bg-zinc-900 border border-zinc-700 p-6 fade-in-up">
+                        <label class="block text-xs uppercase tracking-widest text-zinc-500 mb-4">
+                            Year of Study
+                        </label>
+                        <select 
+                            id="yearSelect" 
+                            class="w-full py-4 px-4 text-lg uppercase tracking-wider cursor-pointer text-zinc-100"
+                        >
+                            <option value="1">Freshman (1st Year)</option>
+                            <option value="2">Sophomore (2nd Year)</option>
+                            <option value="3">Junior (3rd Year)</option>
+                            <option value="4">Senior (4th Year)</option>
+                            <option value="5">Graduate Student</option>
+                            <option value="6">PhD Candidate</option>
+                        </select>
+                    </div>
+
+                    <!-- Worker Input -->
+                    <div id="workerInput" class="hidden bg-zinc-900 border border-zinc-700 p-6 fade-in-up">
+                        <label class="block text-xs uppercase tracking-widest text-zinc-500 mb-4">
+                            Job Title
+                        </label>
+                        <input 
+                            type="text" 
+                            id="jobInput" 
+                            placeholder="e.g., Software Developer, Marketing Manager..."
+                            class="w-full py-4 px-4 text-lg text-zinc-100"
+                        >
+                    </div>
+
+                    <!-- Calculate Button -->
+                    <button 
+                        id="calculateBtn"
+                        class="btn-primary w-full bg-red-700 text-zinc-100 font-display text-2xl md:text-3xl tracking-wider py-5 px-8 border border-red-600 hover:bg-red-600 focus:outline-none focus:ring-4 focus:ring-red-800"
+                    >
+                        CALCULATE MY FAILURE
+                    </button>
+                </section>
+
+                <!-- Results Section -->
+                <section id="resultsSection" class="hidden space-y-5">
+                    <!-- Result Header -->
+                    <div class="text-center mb-4">
+                        <h2 class="font-display text-4xl md:text-6xl tracking-wide mb-2 text-red-500">YOUR FAILURE REPORT</h2>
+                        <p id="totalTimeDisplay" class="text-zinc-500 text-sm"></p>
+                    </div>
+
+                    <!-- Stats Grid -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div class="stat-card p-4 text-center">
+                            <span class="text-xs uppercase tracking-widest text-zinc-500 block mb-1">Total Minutes</span>
+                            <span id="totalMinutes" class="font-display text-2xl md:text-3xl text-zinc-100"></span>
+                        </div>
+                        <div class="stat-card p-4 text-center">
+                            <span class="text-xs uppercase tracking-widest text-zinc-500 block mb-1">Hours Wasted</span>
+                            <span id="hoursWasted" class="font-display text-2xl md:text-3xl text-zinc-100"></span>
+                        </div>
+                        <div class="stat-card p-4 text-center">
+                            <span class="text-xs uppercase tracking-widest text-zinc-500 block mb-1">Lines of Code</span>
+                            <span id="linesOfCode" class="font-display text-2xl md:text-3xl text-amber-500"></span>
+                        </div>
+                        <div class="stat-card p-4 text-center">
+                            <span class="text-xs uppercase tracking-widest text-zinc-500 block mb-1">Tasks Possible</span>
+                            <span id="tasksPossible" class="font-display text-2xl md:text-3xl text-zinc-100"></span>
+                        </div>
+                    </div>
+
+                    <!-- Role Tasks -->
+                    <div id="roleTasksContainer" class="space-y-2">
+                        <div class="category-header px-4 py-3">
+                            <h3 id="roleTasksTitle" class="font-display text-lg tracking-wider text-red-400"></h3>
+                        </div>
+                        <div id="roleTasksList" class="grid grid-cols-1 md:grid-cols-2 gap-2"></div>
+                    </div>
+
+                    <!-- Health Tasks -->
+                    <div id="healthTasksContainer" class="space-y-2">
+                        <div class="category-header px-4 py-3">
+                            <h3 class="font-display text-lg tracking-wider text-red-400">Self-Improvement & Health</h3>
+                        </div>
+                        <div id="healthTasksList" class="grid grid-cols-1 md:grid-cols-2 gap-2"></div>
+                    </div>
+
+                    <!-- Interesting Activity Suggestion -->
+                    <div id="activityContainer" class="space-y-2">
+                        <div class="category-header px-4 py-3 flex items-center justify-between">
+                            <h3 class="font-display text-lg tracking-wider text-amber-500">Or Do Something Fun Instead</h3>
+                            <button id="refreshActivity" class="text-xs text-zinc-400 hover:text-zinc-200 flex items-center gap-2 transition-colors">
+                                <span>Get Another</span>
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        <div id="activityCard" class="activity-card p-5">
+                            <div id="activityLoading" class="flex items-center justify-center gap-3">
+                                <div class="spinner"></div>
+                                <span class="text-zinc-400">Finding something interesting...</span>
+                            </div>
+                            <div id="activityContent" class="hidden">
+                                <p id="activityText" class="text-lg text-zinc-200 mb-2"></p>
+                                <div class="flex items-center gap-3 mt-3">
+                                    <span id="activityType" class="text-xs px-2 py-1 bg-zinc-800 text-amber-500 rounded uppercase tracking-wider"></span>
+                                    <span id="activityParticipants" class="text-xs text-zinc-500"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Shame Message -->
+                    <div id="shameMessage" class="bg-zinc-900 border-l-4 border-red-600 p-5">
+                        <p class="text-base text-zinc-300 italic"></p>
+                    </div>
+
+                    <!-- Buttons -->
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <button 
+                            id="shareBtn"
+                            class="btn-primary flex-1 bg-transparent border border-zinc-700 text-zinc-300 font-display text-lg tracking-wider py-4 px-6 hover:bg-zinc-800 hover:border-zinc-600"
+                        >
+                            COPY MY SHAME
+                        </button>
+                        <button 
+                            id="tryAgainBtn"
+                            class="btn-primary flex-1 bg-red-700 text-zinc-100 font-display text-lg tracking-wider py-4 px-6 border border-red-600 hover:bg-red-600"
+                        >
+                            FACE REALITY AGAIN
+                        </button>
+                    </div>
+                </section>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="border-t border-zinc-800 py-4 px-6 relative z-10">
+            <div class="max-w-6xl mx-auto text-center text-xs text-zinc-600">
+                <p>Time is the currency of your life. Spend it wisely.</p>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        // Data
+        const studentTasks = [
+            { id: 1, task: "Solve complex math/derivative problems", duration: 10, unit: "problem" },
+            { id: 2, task: "Read technical textbook pages", duration: 6, unit: "page" },
+            { id: 3, task: "Memorize new vocabulary words", duration: 1.5, unit: "word" },
+            { id: 4, task: "Complete Lab Report drafts", duration: 120, unit: "draft" },
+            { id: 5, task: "Watch Educational TED Talks", duration: 18, unit: "video" },
+            { id: 6, task: "Summarize chapters into Cheat Sheets", duration: 45, unit: "sheet" },
+            { id: 7, task: "Practice presentation runs", duration: 10, unit: "run" },
+            { id: 8, task: "Solve previous exam questions", duration: 36, unit: "question" },
+            { id: 9, task: "Organize digital study folders", duration: 20, unit: "session" },
+            { id: 10, task: "Review lecture notes (per week)", duration: 5, unit: "week" }
+        ];
+
+        const workerTasks = [
+            { id: 11, task: "Write basic CRUD features", duration: 90, unit: "feature" },
+            { id: 12, task: "Archive emails (Inbox Zero)", duration: 0.6, unit: "email" },
+            { id: 13, task: "Research new tools/libraries", duration: 45, unit: "tool" },
+            { id: 14, task: "Debug UI/Logic bugs", duration: 40, unit: "bug" },
+            { id: 15, task: "Update LinkedIn/Resume skills", duration: 25, unit: "skill" },
+            { id: 16, task: "Plan weekly goals and deadlines", duration: 20, unit: "week" },
+            { id: 17, task: "Review colleague's Pull Requests", duration: 20, unit: "PR" },
+            { id: 18, task: "Write technical blog posts", duration: 120, unit: "post" },
+            { id: 19, task: "Organize physical workspace", duration: 15, unit: "session" },
+            { id: 20, task: "Complete certification modules", duration: 30, unit: "module" }
+        ];
+
+        const healthTasks = [
+            { id: 21, task: "Run 5K cardio sessions", duration: 30, unit: "session" },
+            { id: 22, task: "Meditate to reset focus", duration: 10, unit: "session" },
+            { id: 23, task: "Listen to audiobook chapters", duration: 20, unit: "chapter" },
+            { id: 24, task: "Cook healthy meals from scratch", duration: 45, unit: "meal" },
+            { id: 25, task: "Journal thoughts/Brain dumps", duration: 15, unit: "entry" },
+            { id: 26, task: "Complete HIIT workouts", duration: 20, unit: "workout" },
+            { id: 27, task: "Clean entire rooms", duration: 40, unit: "room" },
+            { id: 28, task: "Learn musical instrument riffs", duration: 30, unit: "riff" },
+            { id: 29, task: "Call family members/friends", duration: 20, unit: "call" },
+            { id: 30, task: "Set monthly budgets", duration: 30, unit: "budget" }
+        ];
+
+        const shameMessages = [
+            "Every minute you spent scrolling was stolen from your future self. The person you could become is watching.",
+            "Someone with the same 24 hours is becoming who you were meant to be. Let that sink in.",
+            "You traded your potential for quick dopamine. Time is the one resource you can't renew.",
+            "Your dreams are waiting. They'll keep waiting until you either achieve them or die with regret.",
+            "The gap between who you are and who you could be is measured in hours. Today, you widened it.",
+            "Success is built in the hours you're wasting. Someone else is working toward everything you want.",
+            "Your screen time is the receipt of your priorities. Look at it honestly."
+        ];
+
+        const introTemplates = ["You could have", "You had time to", "Instead, you could have", "Your potential allowed you to"];
+
+        // DOM Elements
+        let hoursInput, minutesInput, roleSelect, studentInput, workerInput;
+        let yearSelect, jobInput, calculateBtn, inputSection, resultsSection;
+        let totalMinutes, hoursWasted, linesOfCode, tasksPossible;
+        let roleTasksTitle, roleTasksList, healthTasksList, shameMessage;
+        let shareBtn, tryAgainBtn, totalTimeDisplay, screenFlash, bloodDripsContainer;
+        let refreshActivity, activityLoading, activityContent, activityText, activityType, activityParticipants;
+
+        // State
+        let currentTotalMinutes = 0;
+        let currentRole = '';
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get DOM elements
+            hoursInput = document.getElementById('hoursInput');
+            minutesInput = document.getElementById('minutesInput');
+            roleSelect = document.getElementById('roleSelect');
+            studentInput = document.getElementById('studentInput');
+            workerInput = document.getElementById('workerInput');
+            yearSelect = document.getElementById('yearSelect');
+            jobInput = document.getElementById('jobInput');
+            calculateBtn = document.getElementById('calculateBtn');
+            inputSection = document.getElementById('inputSection');
+            resultsSection = document.getElementById('resultsSection');
+            totalMinutes = document.getElementById('totalMinutes');
+            hoursWasted = document.getElementById('hoursWasted');
+            linesOfCode = document.getElementById('linesOfCode');
+            tasksPossible = document.getElementById('tasksPossible');
+            roleTasksTitle = document.getElementById('roleTasksTitle');
+            roleTasksList = document.getElementById('roleTasksList');
+            healthTasksList = document.getElementById('healthTasksList');
+            shameMessage = document.getElementById('shameMessage');
+            shareBtn = document.getElementById('shareBtn');
+            tryAgainBtn = document.getElementById('tryAgainBtn');
+            totalTimeDisplay = document.getElementById('totalTimeDisplay');
+            screenFlash = document.getElementById('screenFlash');
+            bloodDripsContainer = document.getElementById('bloodDrips');
+            refreshActivity = document.getElementById('refreshActivity');
+            activityLoading = document.getElementById('activityLoading');
+            activityContent = document.getElementById('activityContent');
+            activityText = document.getElementById('activityText');
+            activityType = document.getElementById('activityType');
+            activityParticipants = document.getElementById('activityParticipants');
+
+            // Event listeners
+            if (roleSelect) roleSelect.addEventListener('change', handleRoleChange);
+            if (calculateBtn) calculateBtn.addEventListener('click', calculateFailure);
+            if (shareBtn) shareBtn.addEventListener('click', copyShame);
+            if (tryAgainBtn) tryAgainBtn.addEventListener('click', resetApp);
+            if (refreshActivity) refreshActivity.addEventListener('click', fetchInterestingActivity);
+
+            // Input validation
+            if (hoursInput) {
+                hoursInput.addEventListener('input', function() {
+                    let val = parseInt(this.value);
+                    if (!isNaN(val)) {
+                        if (val < 0) this.value = 0;
+                        if (val > 24) this.value = 24;
+                    }
+                });
+            }
+
+            if (minutesInput) {
+                minutesInput.addEventListener('input', function() {
+                    let val = parseInt(this.value);
+                    if (!isNaN(val)) {
+                        if (val < 0) this.value = 0;
+                        if (val > 59) this.value = 59;
+                    }
+                });
+            }
+
+            createBloodDrips();
+        });
+
+        function handleRoleChange() {
+            if (!roleSelect || !studentInput || !workerInput) return;
+            const role = roleSelect.value;
+            studentInput.classList.add('hidden');
+            workerInput.classList.add('hidden');
+            if (role === 'student') studentInput.classList.remove('hidden');
+            else if (role === 'worker') workerInput.classList.remove('hidden');
+        }
+
+        function createBloodDrips() {
+            if (!bloodDripsContainer) return;
+            for (let i = 0; i < 6; i++) {
+                const drip = document.createElement('div');
+                drip.className = 'blood-drip';
+                drip.style.left = (10 + Math.random() * 80) + '%';
+                drip.style.animation = `drip ${2.5 + Math.random() * 2}s ease-in infinite`;
+                drip.style.animationDelay = (Math.random() * 3) + 's';
+                bloodDripsContainer.appendChild(drip);
+            }
+        }
+
+        function calculateFailure() {
+            if (!hoursInput || !minutesInput || !roleSelect) return;
+
+            const hours = parseInt(hoursInput.value) || 0;
+            const minutes = parseInt(minutesInput.value) || 0;
+            const role = roleSelect.value;
+
+            if (hours === 0 && minutes === 0) {
+                shakeElement(calculateBtn);
+                alert("Enter your screen time. Don't hide from the truth.");
+                return;
+            }
+
+            if (!role) {
+                shakeElement(roleSelect);
+                alert("Select your identity.");
+                return;
+            }
+
+            currentTotalMinutes = (hours * 60) + minutes;
+            currentRole = role;
+
+            triggerRevealAnimation();
+
+            setTimeout(() => {
+                generateResults(role);
+                showResults();
+                fetchInterestingActivity();
+            }, 500);
+        }
+
+        function triggerRevealAnimation() {
+            if (screenFlash) {
+                screenFlash.classList.add('active');
+                setTimeout(() => { if (screenFlash) screenFlash.classList.remove('active'); }, 200);
+            }
+            shakeElement(calculateBtn);
+        }
+
+        function shakeElement(element) {
+            if (!element) return;
+            element.classList.add('shake');
+            setTimeout(() => element.classList.remove('shake'), 500);
+        }
+
+        function generateResults(role) {
+            const roleTasks = role === 'student' ? studentTasks : workerTasks;
+            let totalPossible = 0;
+
+            // Update stats
+            if (totalMinutes) totalMinutes.textContent = currentTotalMinutes.toLocaleString();
+            if (hoursWasted) hoursWasted.textContent = (currentTotalMinutes / 60).toFixed(1);
+            
+            // Lines of code for BOTH students and workers
+            const loc = Math.floor(currentTotalMinutes * 0.5); // ~30 lines/hour
+            if (linesOfCode) linesOfCode.textContent = loc.toLocaleString();
+            
+            // Count possible tasks
+            roleTasks.forEach(task => {
+                if (Math.floor(currentTotalMinutes / task.duration) > 0) totalPossible++;
+            });
+            healthTasks.forEach(task => {
+                if (Math.floor(currentTotalMinutes / task.duration) > 0) totalPossible++;
+            });
+            if (tasksPossible) tasksPossible.textContent = totalPossible;
+
+            // Update title
+            if (roleTasksTitle) {
+                roleTasksTitle.textContent = role === 'student' 
+                    ? 'Academic Tasks You Could Have Completed' 
+                    : 'Professional Tasks You Could Have Completed';
+            }
+
+            // Render tasks
+            renderTasks(roleTasks, 'role');
+            renderTasks(healthTasks, 'health');
+
+            // Shame message
+            if (shameMessage) {
+                const p = shameMessage.querySelector('p');
+                if (p) p.textContent = shameMessages[Math.floor(Math.random() * shameMessages.length)];
+            }
+        }
+
+        function renderTasks(tasks, category) {
+            const container = category === 'role' ? roleTasksList : healthTasksList;
+            if (!container) return;
+
+            container.innerHTML = '';
+
+            tasks.forEach((task, index) => {
+                const count = Math.floor(currentTotalMinutes / task.duration);
+                const intro = introTemplates[Math.floor(Math.random() * introTemplates.length)];
+
+                const card = document.createElement('div');
+                card.className = 'result-card p-3 fade-in-up';
+                card.style.animationDelay = `${index * 0.03}s`;
+
+                if (count > 0) {
+                    card.innerHTML = `
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <p class="text-zinc-400 text-sm flex-1">
+                                <span class="text-red-400">${intro}</span>
+                                <span class="text-zinc-200">${task.task}</span>
+                            </p>
+                            <div class="flex items-center gap-2 shrink-0">
+                                <span class="font-display text-xl text-red-500">${count}</span>
+                                <span class="text-xs text-zinc-500">${task.unit}${count > 1 ? 's' : ''}</span>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    const percentage = Math.floor((currentTotalMinutes / task.duration) * 100);
+                    card.innerHTML = `
+                        <div class="flex flex-wrap items-center justify-between gap-2 opacity-40">
+                            <p class="text-zinc-500 text-sm flex-1">
+                                ${task.task}
+                                <span class="text-zinc-600 text-xs ml-2">(${percentage}%)</span>
+                            </p>
+                            <span class="text-xs text-zinc-600">not enough time</span>
+                        </div>
+                    `;
+                }
+
+                container.appendChild(card);
+            });
+        }
+
+        async function fetchInterestingActivity() {
+            if (!activityLoading || !activityContent || !activityText || !activityType || !activityParticipants) return;
+
+            activityLoading.classList.remove('hidden');
+            activityContent.classList.add('hidden');
+
+            try {
+                const response = await fetch('https://www.boredapi.com/api/activity');
+                const data = await response.json();
+                
+                if (data && data.activity) {
+                    activityText.textContent = data.activity;
+                    activityType.textContent = data.type || 'activity';
+                    activityParticipants.textContent = `${data.participants || 1} participant${(data.participants || 1) > 1 ? 's' : ''}`;
+                    
+                    activityLoading.classList.add('hidden');
+                    activityContent.classList.remove('hidden');
+                }
+            } catch (error) {
+                // Fallback activities if API fails
+                const fallbacks = [
+                    { activity: "Learn to cook a new cuisine from scratch", type: "cooking", participants: 1 },
+                    { activity: "Start a small DIY project around the house", type: "diy", participants: 1 },
+                    { activity: "Go stargazing and learn some constellations", type: "recreational", participants: 1 },
+                    { activity: "Write a short story or poem", type: "creative", participants: 1 },
+                    { activity: "Learn basic phrases in a new language", type: "education", participants: 1 },
+                    { activity: "Try meditation or breathing exercises", type: "relaxation", participants: 1 },
+                    { activity: "Explore a nearby neighborhood you've never visited", type: "recreational", participants: 1 },
+                    { activity: "Start a small garden or care for plants", type: "diy", participants: 1 }
+                ];
+                
+                const fallback = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+                activityText.textContent = fallback.activity;
+                activityType.textContent = fallback.type;
+                activityParticipants.textContent = `${fallback.participants} participant${fallback.participants > 1 ? 's' : ''}`;
+                
+                activityLoading.classList.add('hidden');
+                activityContent.classList.remove('hidden');
+            }
+        }
+
+        function showResults() {
+            if (!inputSection || !resultsSection) return;
+            inputSection.classList.add('hidden');
+            resultsSection.classList.remove('hidden');
+            if (totalTimeDisplay) totalTimeDisplay.textContent = `That's ${currentTotalMinutes} minutes you'll never get back.`;
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function copyShame() {
+            const role = currentRole;
+            const roleTasks = role === 'student' ? studentTasks : workerTasks;
+
+            let text = `SHAME CLOCK REPORT\n${'='.repeat(40)}\n\n`;
+            text += `TIME WASTED: ${currentTotalMinutes} minutes (${(currentTotalMinutes / 60).toFixed(1)} hours)\n`;
+            text += `LINES OF CODE POSSIBLE: ${Math.floor(currentTotalMinutes * 0.5).toLocaleString()}\n\n`;
+            
+            text += `${role === 'student' ? 'ACADEMIC' : 'PROFESSIONAL'} TASKS:\n${'-'.repeat(40)}\n`;
+            roleTasks.forEach(task => {
+                const count = Math.floor(currentTotalMinutes / task.duration);
+                if (count > 0) text += `• ${task.task}: ${count} ${task.unit}${count > 1 ? 's' : ''}\n`;
+            });
+
+            text += `\nSELF-IMPROVEMENT:\n${'-'.repeat(40)}\n`;
+            healthTasks.forEach(task => {
+                const count = Math.floor(currentTotalMinutes / task.duration);
+                if (count > 0) text += `• ${task.task}: ${count} ${task.unit}${count > 1 ? 's' : ''}\n`;
+            });
+
+            if (shameMessage) {
+                const p = shameMessage.querySelector('p');
+                if (p) text += `\n${p.textContent}\n`;
+            }
+            text += `\nFace your potential at Shame Clock.`;
+
+            navigator.clipboard.writeText(text).then(() => {
+                if (!shareBtn) return;
+                const original = shareBtn.textContent;
+                shareBtn.textContent = 'COPIED!';
+                shareBtn.classList.add('pulse-glow');
+                setTimeout(() => {
+                    shareBtn.textContent = original;
+                    shareBtn.classList.remove('pulse-glow');
+                }, 2000);
+            }).catch(() => alert('Copy failed. Your shame stays here.'));
+        }
+
+        function resetApp() {
+            if (hoursInput) hoursInput.value = '';
+            if (minutesInput) minutesInput.value = '';
+            if (roleSelect) roleSelect.value = '';
+            if (yearSelect) yearSelect.value = '1';
+            if (jobInput) jobInput.value = '';
+            if (studentInput) studentInput.classList.add('hidden');
+            if (workerInput) workerInput.classList.add('hidden');
+            if (resultsSection) resultsSection.classList.add('hidden');
+            if (inputSection) inputSection.classList.remove('hidden');
+            currentTotalMinutes = 0;
+            currentRole = '';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>
